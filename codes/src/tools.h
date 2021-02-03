@@ -27,3 +27,5 @@ void un_prepare_file(const char *pathname);
  */
 
 void print_char buffer(const char *buf, int n);
+
+#endif 
