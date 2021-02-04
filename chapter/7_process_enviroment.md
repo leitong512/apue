@@ -64,10 +64,11 @@
 
 5. `atexit`函数：登记`exit`函数调用的清理函数
 
-```
+    ```
     #include <stdlib.h>
     int atexit(void (*func)(void));
-```
+    ```
+
     - 参数：
         - `func`: 函数指针。它指向的函数的原型是：返回值为`void`，参数为`void`
     - 返回值：
