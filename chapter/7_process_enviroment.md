@@ -84,20 +84,19 @@
 
 6. 示例：在`main`函数中调用`test_exit_atexit`函数：
 
-```
-void test_exit_atexit()
-{
-    M_TRACE("--------- Begin test_exit_atexit() ---------\n");
-    add_atexit();
-    //exit(258);
-    _Exit(269);
-    //_exit(265);
-    M_TRACE("--------- End test_exit_atexit() ----------\n");
-}
-```
+    ```
+    void test_exit_atexit()
+    {
+        M_TRACE("--------- Begin test_exit_atexit() ---------\n");
+        add_atexit();
+        //exit(258);
+        _Exit(269);
+        //_exit(265);
+        M_TRACE("--------- End test_exit_atexit() ----------\n");
+    }
+    ```
 
     可以看到：
-
     - 终止处理程序`exit handler` 调用顺序是逆序的
     - 终止处理程序`exit handler` 多次注册则调用多次
     - 退出码是除以256的余数
