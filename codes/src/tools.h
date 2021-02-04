@@ -26,6 +26,6 @@ void un_prepare_file(const char *pathname);
  *\param: n 数组长度
  */
 
-void print_char buffer(const char *buf, int n);
+void print_char_buffer(const char *buf, int n);
 
 #endif 
