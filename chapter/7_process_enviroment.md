@@ -106,3 +106,22 @@
     如果将`exit(258);`替换成`_Exit(269)`，则：
     - 不会再调用终止程序`exit handler`
     ![_Exit](../imgs/7_process_environment/_Exit.png)
+
+7. C 程序的启动和终止
+    - `exit` 函数首先调用各终止处理函数，然后关闭（通过 fclose）所有打开流。
+    - 内核使程序执行的唯一方法是调用一个`exec`函数
+    - 进程自愿终止的唯一方法是显示或隐式地（通过调用`exit`）调用`_exit`或`_Exit`
+
+    ![program_start_stop](../imgs/7_process_environment/program_start_stop.png)
+
+8. 每个进程都会接收一张环境表。
+    - 与参数表一样，环境表也是一个字符指针数组
+        - 其中数组中的每个指针指向一个以 null 结束的 C 字符串，这些字符串称之为环境字符串
+        - 数组最后一项是 `NULL`
+    - 全局变量`envrion`包含了该指针数组的地址：`extern char **envrion;`，称 envrion 为环境指针（envrionment pointer）
+    - 按照惯例，环境由 `name = value` 这样的字符串组成
+
+    ![env_table](../imgs/7_process_environment/env_table.png)
+
+
+    
