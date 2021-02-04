@@ -101,4 +101,4 @@
     - 终止处理程序`exit handler` 多次注册则调用多次
     - 退出码是除以256的余数
 
-    ![atexit](../imgs/7_process_environment/atexit.png)
+    ![axit](../imgs/7_process_environment/atexit.png)
