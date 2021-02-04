@@ -80,3 +80,23 @@
     - `eixt`调用这些`exit handler`的顺序与它们登记的时候顺序相反
     - 如果同一个`exit handler` 被等级多次，则它们也会调用多次
     > 通常操作系统会提供多余 32 个`exit > handler`的限制。可以用`sysconf`函数查询这个限制值
+
+
+6. 示例：在`main`函数中调用`test_exit_atexit`函数：
+```
+void test_exit_atexit()
+{
+    M_TRACE("--------- Begin test_exit_atexit() ---------\n");
+    add_atexit();
+    //exit(258);
+    _Exit(269);
+    //_exit(265);
+    M_TRACE("--------- End test_exit_atexit() ----------\n");
+}
+```
+    可以看到：
+    - 终止处理程序`exit handler` 调用顺序是逆序的
+    - 终止处理程序`exit handler` 多次注册则调用多次
+    - 退出码是除以256的余数
+
+    ![atexit](../imgs/7_process_environment/atexit.png)

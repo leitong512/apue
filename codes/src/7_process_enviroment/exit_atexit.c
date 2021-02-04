@@ -38,7 +38,7 @@ static void f_2()
 
 static void f_3()
 {
-    printf("f_1 is called\n");
+    printf("f_3 is called\n");
 }
 
 void add_atexit() 
@@ -65,8 +65,8 @@ void test_exit_atexit()
 {
     M_TRACE("--------- Begin test_exit_atexit() ---------\n");
     add_atexit();
-    //exit(258);
-    _Exit(269);
+    exit(259);
+    //_Exit(269);
     //_exit(265);
     M_TRACE("--------- End test_exit_atexit() ----------\n");
 }
