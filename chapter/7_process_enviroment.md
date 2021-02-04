@@ -138,7 +138,7 @@
     - 堆段：通常在堆中进行动态存储分配
         - 由于历史习惯，堆位于未初始化数据段和栈段之间
 
-    ![process_memory](../imgs/7_process_enviroment/process_memory.png)
+    ![process_memory](../imgs/7_process_environment/process_memory.png)
 
     注意：
     - 栈从高地址向低地址增长。堆顶和栈顶之间未使用的虚拟地址空间很大
