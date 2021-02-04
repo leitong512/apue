@@ -65,8 +65,8 @@ void test_exit_atexit()
 {
     M_TRACE("--------- Begin test_exit_atexit() ---------\n");
     add_atexit();
-    exit(259);
-    //_Exit(269);
+    //exit(259);
+    _Exit(269);
     //_exit(265);
     M_TRACE("--------- End test_exit_atexit() ----------\n");
 }
