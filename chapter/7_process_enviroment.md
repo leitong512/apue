@@ -94,6 +94,7 @@ void test_exit_atexit()
     M_TRACE("--------- End test_exit_atexit() ----------\n");
 }
 ```
+
     可以看到：
     - 终止处理程序`exit handler` 调用顺序是逆序的
     - 终止处理程序`exit handler` 多次注册则调用多次
