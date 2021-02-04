@@ -83,6 +83,7 @@
 
 
 6. 示例：在`main`函数中调用`test_exit_atexit`函数：
+
 ```
 void test_exit_atexit()
 {
@@ -96,6 +97,7 @@ void test_exit_atexit()
 ```
 
     可以看到：
+
     - 终止处理程序`exit handler` 调用顺序是逆序的
     - 终止处理程序`exit handler` 多次注册则调用多次
     - 退出码是除以256的余数
