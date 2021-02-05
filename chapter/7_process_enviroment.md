@@ -240,3 +240,124 @@
 
     因为，一旦`realloc`失败，则`ptr`赋值为`NULL`。`ptr`原来指向的动态内存去再也不能访问，也就无法释放，从而发生内存泄漏
 
+## 环境变量
+
+1.  环境字符串的形式是：`name=value`。UNIX内核并不查看这些字符串，这些字符串的具体意义由各应用程序解释
+
+2. `getenv`函数：获取环境变量的值：
+
+    ```
+    #include <stdlib.h>
+    char *getenv(const char *name);
+    ```
+
+    - 参数：
+        - `name`：环境变量名
+    - 返回值：
+        - 成功：指向与`name`关联的`value`的指针
+        - 失败：返回`NULL`
+    
+    注意：
+    - 虽然我们也可以通过`environ`全局变量访问到环境字符串，但是推荐使用`getenv`函数
+    - 常用的环境变量名有：
+        - `HOME`：`home`目录
+        - `LANG`：语言
+        - `LOGNAME`：登录名
+        - `PATH`：搜索路径
+        - `PWD`：当前工作目录的绝对路径名
+        - `SHELL`：用户首选的SHELL
+        - `TREM`：终端类型
+        - `TMPDIR`：在其中创建临时文件的目录路径名
+        - `TZ`：时区信息
+
+3. `putenv/setenv/unsetenv`函数：设置环境变量的值
+
+    ```
+    #include<stdlib.h>
+    int putenv(char *str);
+    int setenv(const char *name,const char *value,int rewrite);
+    int unsetenv(const char *name);
+    ```
+
+    - 参数：
+        
+        对于`putenv`函数：
+		- `str`：形式为`name=value`的字符串，将其放置到进程的环境表中。如果`name`已经存在，则先删除其原来的语义
+
+		对于`setenv`函数：
+		- `name`：环境变量名
+		- `value`：环境变量的值
+		- `rewrite`：指定覆写行为。
+			- 如果它为0，则如果`name`在环境表中已存在，则直接返回而不修改。同时也不报错
+			- 如果它非0，则如果`name`在环境表中已存在，则首先删除它现有的定义，然后添加新的定义
+
+		对于`unsetenv`函数：
+		- `name`：环境变量名
+
+    - 返回值：
+        
+        对于 `putenv`函数：
+		- 成功：返回0
+		- 失败：返回非0
+
+		对于`setenv/unsetenv`函数：
+		- 成功： 返回 0
+		- 失败： 返回 -1
+
+    注意：
+    - `unsetenv`是从环境表中删除`name`的定义。如果`name`不存在，则也不算出错
+	- 这些函数内部操作环境表非常复杂，下面是原理：
+		- 如果修改一个现有的`name`：
+			- 如果新的`value`长度少于或等于现有`value`的长度，则只需要将新字符串复制到原字符串所用的空间即可
+			- 如果新的`value`长度大于现有`value`的长度，则必须调用`malloc`为新字符串分配空间，然后将新字符串复制到该空间，接着使环境表中对`name`的指针指向新分配区并释放旧分配区
+		- 如果增加一个新的`name`：
+			- 如果这是第一次增加一个新的`name`：
+				- 则必须调用`malloc`为新指针表分配空间
+				- 然后将原来的环境表复制到新分配区
+				- 并将新的`name=value`字符串的指针存放到该指针表的表尾，
+				- 然后将一个空指针存放在其后
+				- 然后使`environ`指向新指针表
+				- 最后释放旧的指针表
+			- 如果这不是第一次增加一个新的`name`，则可知以前已经调用了`malloc`：
+				- 则只需要调用`realloc`，以分配比原空间多存放一个指针的空间
+				- 并将新的`name=value`字符串的指针存放到该指针表的表尾，
+				- 然后将一个空指针存放在其后
+		- 如果删除一个`name`：则只需要先在环境表中找到该指针，然后将所有的后续指针都向环境表的首部依次顺序移动一个位置即可
+
+
+4. 示例：在`main`函数中调用`test_getenv_setenv`函数：
+
+	```
+    void test_getenv_setenv()
+    {
+        M_TRACE("---------  Begin test_getenv_setenv()  ---------\n");
+        print_environ();
+        //********* 测试 getenv ******//
+        printf("******* test getenv *******\n");
+        My_getenv("HOME");
+        My_getenv("LANG");
+        My_getenv("PATH");
+        //********* 测试 setenv ,putenv ******//
+        printf("\n\n******* test setenv ,putenv *******\n");
+        My_putenv("aaa"); // 不正常的格式
+        My_getenv("aaa");
+        My_putenv("aaa=1"); // 正常的格式
+        My_getenv("aaa");
+        My_setenv("aaa","2",0); // 不覆盖
+        My_getenv("aaa");
+        My_setenv("aaa","2",1); // 覆盖
+        My_getenv("aaa");
+        //********* 测试 unsetenv ******//
+        printf("\n\n******* test unsetenv *******\n");
+        My_unsetenv("bbb"); //不存在
+        My_unsetenv("aaa");
+        M_TRACE("---------  End test_getenv_setenv()  ---------\n\n");
+    }
+	```
+
+    ![get_set_env](../imgs/7_process_environment/get_set_env.png)
+
+    可以看到：
+	- 对于不存在的 `"bbb"`，`unsetenv("bbb")`执行成功
+	- 对于不正确的格式， `putenv("aaa")` ,`getenv("aaa")` 执行失败
+	- 对于 `getenv` 执行失败时，并没有修改对应的全局`errno`变量
