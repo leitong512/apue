@@ -188,4 +188,55 @@
         - 内存泄漏会导致进程地址空间长度慢慢增加到不再有空闲空间。此时过度的换页开销会导致性能下降
     - 对一块动态分配的内存，只能`free`一次。如果`free`多次则会发生错误
 
+11. 示例：在`main`函数中调用`test_malloc_realloc`函数：
+    ```
+    void test_malloc_realloc()
+    {
+        M_TRACE("------ Begin test_malloc_realloc() --------\n");
+        free(NULL);
+
+        void * ptr1;
+        void * ptr2;
+        void * ptr3;
+        void * ptr4;
+        void * ptr5;
+
+        //************执行测试*************/
+        ptr1 = My_malloc(10);
+        ptr2 = My_calloc(sizeof(struct timespec), 10);
+        ptr3 = My_realloc(ptr1,1);   //缩小,地址不变 ptr1 == ptr3
+        ptr4 = My_realloc(ptr3, 100); //扩大, ptr1,ptr3 释放, 重新分配赋值给 ptr4
+        ptr5 = My_realloc(NULL,100); //等价 malloc(100)
+        /***********释放内存***************/
+        free(ptr5);  //ok, 新分配的
+        free(ptr4); //ok
+        free(ptr2);  //ok,新分配的
+        //free(ptr1); //error, 在ptr4 那句，指向的内存已经释放掉了
+        //free(ptr3); //error, 在ptr4 那句，指向的内存已经释放掉了
+        M_TRACE("------ end test_malloc_realloc() --------\n");
+    }
+    ```
+
+    ![malloc](../imgs/7_process_environment/malloc.png)
+
+    可以看到，我们只需要`free`指针`ptr2,ptr4,ptr5`:
+    - `ptr1`：由于`realloc`缩小动态内存区时，并不移动动态内存去，它的值等于`ptr3`
+    - `ptr2`：由`calloc`分配的
+    - `ptr3`：在对`ptr3`进行`realloc`扩大动态内存区时，发生了内存去的移动，此时`realloc`会自动释放旧的内存区(即`ptr3`)
+    - `ptr4`：由`realloc`扩张动态内存区时，分配的新的动态内存区
+    - `ptr5`：当`realloc`第一个参数是`NULL`时，相当于`malloc`，此时分配动态内存区
+
+    `free(NULL)`执行成功，并没有报错。
+
+    下面看下如果`free(ptr1)`：
+    ![malloc_free_err_1](../imgs/7_process_environment/malloc_free_err_1.png)
+
+12. 必须用不同的变量保存`realloc`返回的值：
     
+    ```
+    char * ptr = malloc(10);
+    ptr = realloc(1000); #错误行为
+    ```
+
+    因为，一旦`realloc`失败，则`ptr`赋值为`NULL`。`ptr`原来指向的动态内存去再也不能访问，也就无法释放，从而发生内存泄漏
+
