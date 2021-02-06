@@ -10,6 +10,7 @@
 #include "src/7_process_enviroment/malloc_realloc.h"
 #include "src/7_process_enviroment/getenv_setenv.h"
 #include "src/8_process_control/process_id.h"
+#include "src/8_process_control/fork.h"
 
 int main(void)
 {
@@ -19,6 +20,7 @@ int main(void)
     //test_malloc_realloc();
     //test_getenv_setenv();
     //********第八章*******//
-    test_process_id();
+    //test_process_id();
+    test_fork();
     return 0;
 }

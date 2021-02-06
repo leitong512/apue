@@ -28,4 +28,23 @@ void un_prepare_file(const char *pathname);
 
 void print_char_buffer(const char *buf, int n);
 
+/*!
+ * \brief fcntl_lock : 使用 fcntl 记录锁加锁
+ * \param fd : 加锁的文件的文件描述符
+ */
+void fcntl_lock(int fd);
+/*!
+ * \brief fcntl_unlock : 解锁 fcntl 记录锁
+ * \param fd : 解锁的文件的文件描述符
+ */
+void fcntl_unlock(int fd);
+
+/*!
+ * \brief cur_abs_path : 根据目录和相对目录的文件名拼接绝对路径名
+ * \param dir_name : 目录的绝对路径名
+ * \param file_name : 文件名
+ * \return : 该文件名的绝对路径名字符串的地址（静态数组存放）
+ */
+char* abs_path(const char*dir_name,const char* file_name);
+
 #endif 
