@@ -139,3 +139,68 @@
 6. `fork`有两种用法：
     - 父进程希望复制自己，是父进程和子进程同时执行不同的代码段。在网络服务中很常见：父进程等待请求，然后调用`fork`并使子进程处理请求
     - 父进程要执行一个不同的程序。在`shell`是很常见。此时子进程从`fork`返回之后立即调用`exec`
+
+7. `vfork`函数调用序列和返回值与`fork`相同，但是二者语义不同：
+    - `vfork`用于创建一个新进程，该新进程的目的是`exec`一个新程序，所以`vfork`并不将父进程的地址空间拷贝到子进程中。
+        - `vfork`的做法是：在调用`exec`或者`exit`之前，子进程在父进程的空间中运行。
+        > 所以在`exec`或者`exit`之前，子进程可以篡改父进程的数据空间。
+
+    - `vfork`保证子进程优先运行，在子进程调用`exec`或者`exit`之后父进程才可能被调度运行
+    > 当子进程调用`exec`或者`exit`中的任何一个时，父进程会恢复运行，在此之前内核会使父进程处于休眠状态。
+
+8. 示例：在`main`函数中调用`test_vfork`函数：
+
+```
+    void test_vfork()
+    {
+        M_TRACE("---------- Begin test_vfork ---------\n");
+        assert(prepare_file("test","abc", 3, S_IRWXU) == 0);
+        int fd = My_open("test", O_RDWR);
+        if( -1 == fd )
+        {
+            un_prepare_file("test");
+            M_TRACE("---------- End test_vfork ---------\n");
+            return ;
+        }
+        /*********打开文件成功***********/
+        int i = 0;
+        int id = vfork();
+        if ( 0 == id )
+        { //child
+            sleep(2);
+            fcntl_lock(fd);
+            printf("********* In Child *********\n");
+            print_pid();
+            print_parent_pid();
+            printf("i = %d\n",i);
+            i = 999;
+            printf("********* In Child *********\n");
+            fcntl_unlock(fd);
+            _exit(0);
+        }
+        else
+        {   //parent
+            fcntl_lock(fd);  // 加锁
+            printf("*********** In Parent ***********\n");
+            print_pid();
+            print_parent_pid();
+            printf("i=%d\n",i);
+            printf("*********** In Parent ***********\n");
+            fcntl_unlock(fd); // 解锁
+        }
+        close(fd);
+        un_prepare_file("test");
+        M_TRACE("---------- End test_vfork ---------\n");
+    }
+```
+
+    ![vfork](../imgs/8_process_control/vfork.c)
+
+
+    可以看出：
+    - 子进程调用`_exit(0)`之前，父进程被阻塞；当子进程调用`_exit(0)`之后，父进程才开始执行
+    - 子进程共享了父进程的进程空间，且可以访问修改父进程的进程空间
+
+    如果我们通过加锁先获得锁，虽然我们期望父进程先执行（因为父进程先获得锁），但是实际仍然是子进程先执行。`vfork`直接让父进程处于未就绪的状态，从而不会去获取记录锁。只有当子进程执行完`_exit(0)`时，父进程才就绪。
+
+

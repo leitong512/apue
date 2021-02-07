@@ -11,6 +11,7 @@
 #include "src/7_process_enviroment/getenv_setenv.h"
 #include "src/8_process_control/process_id.h"
 #include "src/8_process_control/fork.h"
+#include "src/8_process_control/vfork.h"
 
 int main(void)
 {
@@ -21,6 +22,7 @@ int main(void)
     //test_getenv_setenv();
     //********第八章*******//
     //test_process_id();
-    test_fork();
+    //test_fork();
+    test_vfork();
     return 0;
 }
