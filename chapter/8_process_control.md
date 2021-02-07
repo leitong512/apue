@@ -150,7 +150,7 @@
 
 8. 示例：在`main`函数中调用`test_vfork`函数：
 
-```
+    ```
     void test_vfork()
     {
         M_TRACE("---------- Begin test_vfork ---------\n");
@@ -192,7 +192,7 @@
         un_prepare_file("test");
         M_TRACE("---------- End test_vfork ---------\n");
     }
-```
+    ```
 
     ![vfork](../imgs/8_process_control/vfork.png)
 
