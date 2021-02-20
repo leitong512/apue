@@ -185,24 +185,19 @@ void test_wait_waitpid()
         M_TRACE("--------End test_fork() ------------\n\n");
         return ;
     }
-
     //打开文件成功
     process_func(fd, "***************Parent************");
     if( 0 != child_exit(fd, 100) )
-    {
-        //parent
+    {   //parent
         sleep(1);  //确保父进程稍后执行
         if ( 0 != child_abort(fd) )
-        {
-            //parent
+        {   //parent
             sleep(1);  //确保父进程稍后执行
             if ( 0 != child_signal(fd) )
-            {
-                //parent
+            {    //parent
                 sleep(1);//确保父进程稍后执行
-                check_wait();  //only wait at parent 
-                //check_waitpid(); //only wait at parent
-                
+                //check_wait();  //only wait at parent 
+                check_waitpid(); //only wait at parent
                 close(fd);
                 un_prepare_file("test");
                 M_TRACE("---------- End test_wait_waitpid() ---------\n\n");

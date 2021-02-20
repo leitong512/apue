@@ -307,4 +307,50 @@
         - `WIFCONTINUED(status)`：如果子进程在暂停后已经继续执行了，则为真。
 
 
-    
+6. 示例：在`main`函数中调用`test_wait_waitpid`函数：
+    ```
+    void test_wait_waitpid()
+    {
+        M_TRACE("--------- Begin test_wait_waitpid() -----------\n");
+        assert(prepare_file("test", "abc", 3, S_IRWXU) == 0);
+        int fd = My_open("test", O_RDWR);
+        if( -1 == fd )
+        {
+            un_prepare_file("test");
+            M_TRACE("--------End test_fork() ------------\n\n");
+            return ;
+        }
+        //打开文件成功
+        process_func(fd, "***************Parent************");
+        if( 0 != child_exit(fd, 100) )
+        {   //parent
+            sleep(1);  //确保父进程稍后执行
+            if ( 0 != child_abort(fd) )
+            {   //parent
+                sleep(1);  //确保父进程稍后执行
+                if ( 0 != child_signal(fd) )
+                {    //parent
+                    sleep(1);//确保父进程稍后执行
+                    check_wait();  //only wait at parent
+                    //check_waitpid(); //only wait at parent
+                    close(fd);
+                    un_prepare_file("test");
+                    M_TRACE("---------- End test_wait_waitpid() ---------\n\n");
+                }
+
+            }
+        }
+    }
+    ```
+
+    ![wait](../imgs/8_process_control/wait.png)
+
+    - 子进程的结束顺序是跟它们派生的顺序没有什么关系。`wait`只会处理最先结束的子进程
+    - 调用了`_exit`的子进程，属于正常终止；调用了`abort`和被信号终止的子进程属于异常终止
+
+    如果我们使用 `check_waitpid()`，则结果如下：
+
+    ![waitpid](../imgs/8_process_control/waitpid.png)
+
+    - 通过`waitpid`可以严格控制取得终止子进程状态的顺序
+    - 通过`waitpid`依次等待所有的子进程，可以确保父进程是最后一个结束的
