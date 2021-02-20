@@ -354,3 +354,62 @@
 
     - 通过`waitpid`可以严格控制取得终止子进程状态的顺序
     - 通过`waitpid`依次等待所有的子进程，可以确保父进程是最后一个结束的
+
+
+7. `waitid`函数：它类似`waitpid`，但是提供了更灵活的参数
+
+    ```
+    #include<sys/wait.h>
+    int waitid(idtype_t idtype, id_t id, siginfo_t *infop, int options);
+    ```
+
+    - 参数：
+        - `idtype`：指定了`id`类型，可以为下列常量：
+            `P_PID`：等待一特定进程：id包含要等待子进程的进程ID
+            `P_PGID`：等待一特定进程组中的任一子进程：id包含要等待子进程的进程组ID
+            `P_ALL`：等待任一子进程：忽略id
+
+        - `id`：指定的进程`id`或者进程组`id`
+        - `infop`：一个缓冲区的地址。该缓冲区由`waitid`填写，存放了造成子进程状态改变的有关信号的详细信息
+        - `options`：指示调用者关心哪些状态变化。可以是下列常量的按位或：
+            - `WCONTINUED`：等待这样的子进程：他以前曾被停止过，此后又继续执行，但是其状态尚未报告
+            - `WEXITED`：等待已退出的进程
+            - `WHOHANG`：如无可用的子进程退出状态，立即返回而非阻塞
+            - `WNOWAIT`：不破坏进程退出状态。该子进程退出状态可由后续的
+              `wait`、`waitid` 或`waitpid`调用取得
+            - `WSTOPPED`：等待一进程，它已经停止，但其状态尚未报告
+
+    - 返回值：
+        - 成功：返回 0
+        - 失败：返回 -1
+
+8. 函数`wait3`和`wait4`：可以返回由终止进程及其所有子进程使用的资源概况
+
+    ```
+    #include<sys/types.h>
+    #include<sys/wait.h>
+    #include<sys/time.h>
+    #include<sys/resource.h>
+
+    pid_t wait3(int *staloc, int options, struct rusage *rusage );
+    pid_t wait4(pid_t pid, int *staloc, int options, struct rusage *rusage);
+
+    ```
+
+    - 参数：
+        - `staloc`：存放子进程终止状态的缓冲区的地址。如果你不关心子进程的终止状态，则可以设置为空指针`NULL`
+        - `rusage`：一个缓冲区地址，该缓冲区存放的是终止子进程的资源统计信息，包括：用户CPU时间总量、系统CPU
+        时间总量、缺页次数、接受到信号的次数。
+
+        其他的和`waitpid`一样
+
+    - 返回值：
+        - 成功：返回终止子进程的进程`ID`
+        - 失败：返回 -1
+
+9. 如果`fork`之后的逻辑依赖于父进程还是子进程先执行，则产生了竞争条件。
+    - 可以使用进程间通信机制解决这类竞争问题
+
+## exec
+
+1. 
