@@ -510,5 +510,17 @@
 
     >- 设置用户`ID`和设置组`ID`程序绝不应该调用`system`函数
 
+8. 示例：在`main`函数中同时调用`test_system`函数：
 
+    ```
+    void test_system()
+    {
+        M_TRACE("---------  Begin test_system()  ---------\n");
+        My_system("ps -ef | grep 6379"); //命令存在
+        My_system("aaaaa"); // 不存在命令
+        M_TRACE("---------  End test_system()  ---------\n\n");
+    }
+    ```
+    注意：调用`system`后不再需要调用`wait`等进程控制原语了，这一切控制由`system`打包
 
+    ![system](../imgs/8_process_control/system.png)
