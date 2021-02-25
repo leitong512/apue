@@ -644,7 +644,7 @@
     ![setuid_setgid](../imgs/8_process_control/setuid_setgid.png)
 
     然后，我们在超级用户状态下，将那些`id`都设置成普通用户的用户`ID`和组`ID`
-	![setuid_seteuid2](../imgs/progress_control/setuid_seteuid2.JPG)
+	![setuid_seteuid_root](../imgs/progress_control/setuid_seteuid_root.JPG)
 
     可以看到：
 	- 普通进程无法将自己的用户`ID`和有效用户`ID`设置为超级用户`root`
@@ -654,3 +654,140 @@
 	另外没有给出的截图是：超级进程一旦将自己的用户ID和有效用户ID设置为普通用户之后，该进程退化为普通进程
 
 
+## 进程会计
+    
+1. 大多数`UNIX`系统提供了一个选项以进行会计处理
+    - 启用该选项后，每当进程结束时内核就会写一个会计处理
+    - 超级用户执行命令`accton pathname`则会启用会计处理，会计记录会写到`pathname`指定的文件中
+        - 如果不带文件名参数，会停止会计处理
+    - 会计记录文件是个二进制文件，包含的会计记录是二进制数据
+
+2.  会计记录结构定义在`<sys/acct.h>`头文件中。虽然各个操作系统的实现可能有差别，但是基本数据如下：
+    
+    ```
+    typedef u_short comp_t;
+    struct acct 
+    {
+        char ac_flag;   //标记
+        char ac_stat;   //终止状态
+        uid_t ac_uid;   //真实用户ID
+        gid_t ac_gid;   //真实组ID
+        dev_t ac_tty;   //控制终端
+        time_t ac_btime;    //起始的日历时间
+        comp_t ac_utime;    //用户CPU时间
+        comp_t ac_stime;    //系统CPU时间
+        comp_t ac_etime;    //流逝时间
+        comp_t ac_mem;  //平均内存使用
+        comp_t ac_io;   //`read`和`write`字节数量
+        comp_t ac_rw;   //`read`和`write`的块数
+        char ac_comm[8];    //命令名。对应LINUX，则是ac_comm[7]
+    };
+    ```
+
+    - `ac_flag`记录了进程执行期间的某些事件：
+        - `AFORK`：进程是由`fork`产生的，但从未调用`exec`
+        - `ASU`：进程使用超级用户特区
+        - `ACORE`：进程转储`core`（转储`core`的字节并不计算在会计记录内）
+        - `AXSIG`：进程由一个信号杀死
+    - 大多数平台上，时间是以时钟滴答数来记录的
+    - 会计记录所需的所有数据都由内核保存在进程表中，并在一个新进程被创建初始化
+    - 进程终止时，会写一个会计记录。这产生两个后果：
+        - 我们不能获取永远不终止的进程的会计记录。因此`init`进程以及内核守护进程不会产生会计记录
+        - 在会计文件中记录的顺序对应的是进程终止的顺序，而不是它们的启动的顺序
+    - 会计记录对应的进程而不是程序。因此如果一个进程顺序的执行了 3 个程序：`A exec B, B exec C`，
+    则只会写一个会计记录。在该记录中的命令名对应于程序`C`，但是`CPU`时间是程序`A,B,C`之和
+
+3. `times`函数：任何进程都可以用该函数获取它自己以及已经终止子进程的运行时间
+
+    ```
+    #include <sys/times.h>
+    clock_t times(struct tms *buf);
+    ```
+
+    - 参数：
+        - `buf`：执行`tms`结构的指针。该结构由`times`填写并返回
+    - 返回值：
+        - 成功：返回流逝的墙上始终时间（以时钟滴答数为单位）
+        - 返回：-1
+
+    一个进程可以度量的有 3 个时间：
+    - 墙上时钟流逝的时间。从进程从开始运行到结束时钟走过的时间，这其中包含了进程在阻塞和等待状态的时间
+    - 用户`CPU`时间：用户进程获得了CPU资源以后，在用户态执行的时间
+        > 与用户进程对应的是内核进程
+    - 系统`CPU`时间：用户进程获得了CPU资源以后，在内核态的执行时间
+
+        > 进程的三种状态为阻塞、就绪、运行
+        >
+        >- 墙上时钟流逝时间 = 阻塞时间 + 就绪时间 + 运行时间
+        >- 用户CPU时间 = 运行状态下用户空间的时间
+        >- 系统CPU时间 = 运行状态下系统空间的时间
+        >- 用户CPU时间 + 系统CPU时间 = 运行时间
+
+    `times`函数就是获取进程的这几个时间的。这里`tms`结构定义为：
+
+    ```
+    struct tms {
+        clock_t tms_utime;  //用户 CPU 时间
+        clock_t tms_stime;  //系统 CPU 时间
+        clock_t tms_cutime; //终止的子进程用户 CPU 时间的累加值
+        clock_t tms_cstime; //终止的子进程系统 CPU 时间的累加值
+    }
+    ```
+
+    注意：
+    - 墙上时钟是相对于过去某个时间刻度量的，所以不能用其绝对值而必须用相对值。通常的用法是：
+    调用两次`times`，然后去两次墙上时钟的差值
+    - `tms_cutime` 和 `tms_cstime` 包含了`wait`函数族已经等待到的各个子进程的值
+    - `clockt_t`可以使用`_SC_CLk_TCK`（用`sysconf`函数）转换成秒数
+
+4. 示例：在`main`函数中调用`test_progress_times`函数：
+
+	```
+    void test_progress_times()
+    {
+        M_TRACE("---------  Begin test_progress_times()  ---------\n");
+        assert(prepare_file("test","abc",3,S_IRWXU)==0);
+        int fd=My_open("test",O_RDWR);
+        if(-1==fd)
+        {
+            un_prepare_file("test");
+            M_TRACE("---------  End test_fork()  ---------\n\n");
+            return;
+        }
+        //****** 打开文件成功 *************//
+        clock_t t1,t2;
+        struct tms buf;
+        t1=times(&buf);
+        create_child(fd,1000000000);// 子进程直接 _exit
+        create_child(fd,2000000000);// 子进程直接 _exit
+        sleep(5);// 让子进程获得锁，否则父进程持有锁，然后等待子进程结束，最后死锁
+        fcntl_lock(fd);  // 加锁
+        busy_work(1000000000);// 只有父进程能到达这里
+        check_waitpid();
+        t2=My_times(&buf);
+        printf("Parent elapsed time is %d s\n",clock_2_second(t2-t1));\
+        fcntl_unlock(fd); // 解锁
+
+        close(fd);
+        un_prepare_file("test");
+        M_TRACE("---------  End test_progress_times()  ---------\n\n");
+    }
+	```
+    ![times](../imgs/8_process_control/times.png)
+
+    该示例的父进程派生了两个子进程。每个子进程都睡眠了 2秒
+	- 为了便于观察结果，父进程和子进程都进行了十亿次级别的循环（`busy_work`实现的）。如果没有`busy_work`，则进程的用户CPU时间为0
+	- 流逝时间转换成了秒
+	- 父进程必须`wait`子进程才能收集子进程的信息。否则父进程的`cstime`和`cutime`均为0
+	- 为了防止发生竞争条件，这里使用记录锁。
+
+    可以看到：
+	- 当进程睡眠时，只会影响进程的流逝时间，不会影响进程的`utime`和`stime`
+	- 进程的流逝时间必须用两次墙上时钟的差值
+	- 父进程想要获得子进程的运行时间，必须调用`wait`
+	- 父进程获取的子进程的`user cpu time`等于`230+461=691`个时钟滴答，约等于 `691`个时钟滴答。等于 7 秒
+	- 父进程获取的子进程的`system cpu time`等于`0`个时钟滴答，等于0 秒。
+	- 第一个子进程的运行时间，除了`user cpu time`（等于2秒）之外，还加上睡眠时间（ 2 秒）等于4秒
+	- 第二个子进程的运行时间，除了`user cpu time`（等于4秒）之外，还加上睡眠时间（ 2 秒）等于6秒
+	- 父进程的运行时间	= 4秒（子进程一运行时间）+6秒（子进程二运行时间）+2秒（父进程的`user cpu time`），一共是 13秒。但是注意到：子进程一的`user cpu time`为 230个时钟滴答， 子进程二的`user cpu time`为 461 个时钟滴答，父进程的`user cpu time`为 231个时钟滴答。这三个时间加在一起应该是  921 个时钟滴答，约 9秒。而我们前面计算是，为 2+5+2=9秒。因此父进程运行时间为 13秒+ 0 秒=13秒
+	> 父进程`sleep`时，正好子进程在运行。由于记录锁的存在，时间可以这样累加。
