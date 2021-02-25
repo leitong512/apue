@@ -524,3 +524,133 @@
     注意：调用`system`后不再需要调用`wait`等进程控制原语了，这一切控制由`system`打包
 
     ![system](../imgs/8_process_control/system.png)
+
+
+## 更改用户ID和更改组ID
+
+1. 在设计应用程序时，应该使用最小特权模型：程序应当只具有为完成给定认定所需的最小特权
+    - 当进程需要增加特权或需要访问当前并不允许访问的资源时，我们需要更换自己的用户ID或者组ID，是的新ID具有合适的特权或者访问权限
+    - 当前进程需要降低其特权或者阻止对某些资源的访问时，也需要更换用户ID或者组ID，新ID不具有相应的特权
+    - 进程大部分时候都是最低特权运行。只有到了必要的时候提升特权访问资源，一旦资源访问完毕立即降低特权
+
+2. `setuid/setgid`函数：设置实际用户`ID`和有效用户`ID` / 实际组`ID`和有效组`ID`
+
+    ```
+    #include <unistd.h>
+    int setuid(uid_t uid);
+    int setgid(gid_t gid);
+    ```
+
+    - 参数：
+        - `uid`：待设置的用户`ID`
+        - `gid`：待设置的组`ID`
+
+    - 返回值：
+        - 成功：返回 0
+        - 失败：返回 -1
+
+    设置的规则为：
+    - 如果进程具有超级用户特权，则`setuid`函数将实际用户`ID`，有效用户`ID`以及保存的设
+    置用户`ID`(`saved set-user-ID`)全部设置为`uid`（此时`uid`没有限制）
+    - 如果进程没有超级用户特权，但是`uid`等于实际用户`ID`或者保存的设置用户`ID`，则`setuid`只会将有效用户`ID`设置为`uid`，不改变
+    实际用户`ID`和保存的设置用户`ID`
+    - 如果上面两个条件都不满足，则`errno`设置为`EPERM`并返回 -1
+    - 上述讨论中，假设`_POSIX_SAVED_IDS`为真。如果为提供此功能，则对于保存的设置用户`ID`部分都无效
+    - 针对`setgid`的讨论类似`setuid`
+    
+3. 操作系统内核为每个进程维护 3 个用户`ID`：实际用户`ID`、有效用户`ID`、保存的设置用户`ID`:
+    - 只有超级用户进程可以更改实际用户`ID`
+        - 通常是实际用户`ID`是在用户登录时，由`login`程序设置的，而且绝不会改变它。`login`是一个超级用户进程，当它调用`setuid`时，
+        设置所有的 3 个用户`ID`
+    - 仅当对程序文件设置了用户`ID`时，`exec`函数才设置有效用户`ID`。如果程序文件的设置用户`ID`位没有设置，则`exec`函数不会改变
+    有效用户`ID`，而是维持其现有值
+        - 任何时候都可以调用`setuid`将有效用户`ID`设置为实际用户`ID`或者保存的设置用户`ID`
+        - 调用`setuid`时，有效用户`ID`不能随意取值，只能从实际用户`ID`或者保存的设置用户`ID`取值
+    - 保存的设置用户`ID`是由`exec`复制有效用户`ID`而得到。如果设置了程序文件的设置用户`ID`位，则`exec`根据文件的用户`ID`设置了
+    进程的有效用户`ID`之后，这个副本就保存起来
+    - 目前可以通过`getuid`获取进程的当前实际用户`ID`，可以通过`geteuid`获取进程的当前有效用户`ID`，但没有函数获取进程当前的保存的
+    设置用户`ID`
+
+
+4 `POSIX`提供了两个函数：
+
+    ```
+    #include <unistd.h>
+    int seteuid(uid_t uid);
+    int setegid(gid_t gid);
+    ```
+    - 参数：
+        - `uid`：待设置的有效用户`ID`
+        - `gid`：待设置的有效组`ID`  
+    - 返回值：
+		- 成功： 返回 0
+		- 失败： 返回 -1
+
+    `seteuid`只修改进程的有效用户`ID`；`setegid`只修改进程的有效组`ID`
+    - 如果进程具有超级权限，则`seteuid`将设置进程的有效用户`ID`为`uid`（此时`uid`没有限制）
+    - 如果进程没有超级用户权限，则`seteuid`只能将进程的有效用户`ID`设置为它的实际用户`ID`或者保存的设置用户`ID`
+    - 针对`setegid`的讨论类似`seteuid`
+
+5. `getlogin`：获取运行该程序的用户登录名
+
+    ```
+    #inlcude<unistd.h>
+    char *getlogin(void);
+    ```
+    - 返回值：
+        - 成功：返回指向登录名字字符串的指针
+        - 返回：返回`NULL`
+
+    通常失败的原因是：进程的用户并没有登录到系统。比如守护进程
+
+6. 示例：在`main`函数中调用`test_setuid_seteuid`函数：
+
+    ```
+    void test_setuid_seteuid()
+    {
+        M_TRACE("---------  Begin test_setuid_seteuid()  ---------\n");
+        struct passwd* result=My_getpwnam("huaxz1986");
+        if(NULL==result)
+        {
+            M_TRACE("---------  End test_setuid_seteuid()  ---------\n\n");
+            return;
+        }
+
+        My_getlogin();
+        printf("\n********** Before set id **********\n");
+        print_uid();
+        print_gid();
+        print_euid();
+        print_egid();
+        printf("\n********** After set id **********\n");
+        My_setuid(result->pw_uid); // 二选一
+        My_setgid(result->pw_gid); // 二选一
+        My_seteuid(result->pw_uid); // 二选一
+        My_setegid(result->pw_gid); // 二选一
+    //    My_setuid(0); // 二选一
+    //    My_setgid(0); // 二选一
+    //    My_seteuid(0); // 二选一
+    //    My_setegid(0); // 二选一
+        print_uid();
+        print_gid();
+        print_euid();
+        print_egid();
+        M_TRACE("---------  End test_setuid_seteuid()  ---------\n\n");
+    }
+	```
+
+    我们首先在普通用户状态下，将那些`ID`都设置成超级用户所属的用户`ID`和组`ID`
+
+    ![setuid_setgid](../imgs/8_process_control/setuid_setgid.png)
+
+    然后，我们在超级用户状态下，将那些`id`都设置成普通用户的用户`ID`和组`ID`
+	![setuid_seteuid2](../imgs/progress_control/setuid_seteuid2.JPG)
+
+    可以看到：
+	- 普通进程无法将自己的用户`ID`和有效用户`ID`设置为超级用户`root`
+	- 超级进程可以设置自己的用户`ID`和有效用户`ID`为任意值，但是无法修改组`ID`和有效组`ID`
+	- 另外这里发现，无论在普通用户下还是超级用户下， `getlogin`都调用失败
+
+	另外没有给出的截图是：超级进程一旦将自己的用户ID和有效用户ID设置为普通用户之后，该进程退化为普通进程
+
+

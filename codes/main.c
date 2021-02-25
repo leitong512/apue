@@ -14,6 +14,7 @@
 #include "src/8_process_control/vfork.h"
 #include "src/8_process_control/wait_waitpid.h"
 #include "src/8_process_control/system_.h"
+#include "src/8_process_control/setuid_setgid.h"
 
 int main(void)
 {
@@ -27,6 +28,7 @@ int main(void)
     //test_fork();
     //test_vfork();
     //test_wait_waitpid();
-    test_system();
+    //test_system();
+    test_setuid_seteuid(); 
     return 0;
 }
