@@ -862,7 +862,7 @@
 	```
     ![nice](../imgs/8_process_control/nice.png) 
 	可以看到，如果为普通用户，则没有权限降低`nice`值。因为普通进程没有权限提升其优先级（即降低`nice`值）。在超级用户权限下，结果如下：
-	![nice_root](../imgs/process_control/nice_root.png) 
+	![nice_root](../imgs/8_process_control/nice_root.png) 
 
 
 
