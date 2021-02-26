@@ -791,3 +791,80 @@
 	- 第二个子进程的运行时间，除了`user cpu time`（等于4秒）之外，还加上睡眠时间（ 2 秒）等于6秒
 	- 父进程的运行时间	= 4秒（子进程一运行时间）+6秒（子进程二运行时间）+2秒（父进程的`user cpu time`），一共是 13秒。但是注意到：子进程一的`user cpu time`为 230个时钟滴答， 子进程二的`user cpu time`为 461 个时钟滴答，父进程的`user cpu time`为 231个时钟滴答。这三个时间加在一起应该是  921 个时钟滴答，约 9秒。而我们前面计算是，为 2+5+2=9秒。因此父进程运行时间为 13秒+ 0 秒=13秒
 	> 父进程`sleep`时，正好子进程在运行。由于记录锁的存在，时间可以这样累加。
+
+
+## 进程调度
+
+1. UNIX系统的调度策略和调度优先级是内核决定的。进程可以通过调整`nice`值选择以更低优先级运行
+    - 只有特权进程运行提高调度权限
+    - `POSIX`实时扩展增加了进一步细调的行为
+
+2. `nice`值得范围是 -20~19 之间。
+    - `nice`值越小，优先级越高（该进程抢占能力更强，更霸道）；`nice`值越大，优先级越低（从而该进程是"友好的"）
+    - 0 是系统默认的`nice`值
+
+3. `nice`函数：进程通过它来获取自己的`nice`值或修改自己的`nice`值：
+    ```
+    #include<uinstd.h>
+    int nice(int incr);
+    ```
+
+    - 参数：
+        - `incr`：`nice`值的增量
+    - 返回值：
+        - 成功：返回新的`nice`值
+        - 返回：-1
+
+    `incr`会被增加到调用进程的`nice`值上。
+    - 如果`incr`值太大，系统会直接将它降到最大合法值，不会出错（19）。
+    - 如果`incr`值太小，系统会直接将它提高到最小合法值，不会出错（-20）。
+        - 由于 -1 是合法的返回值。因此在`nice`返回 -1 时，需要综合`errno`才能判断是否出错。
+    
+4. `getpriority/setpriority`函数：获取/设置进程的`nice`值
+    
+    ```
+    #include<sys/resource.h>
+    int getpriority(int which, id_t who);
+    int setpriority(int which, id_t who, int value);
+    ```
+
+    - 参数：
+        - `which`：控制`who`参数是如何解释的。可以取3个值之一：
+            - `PRIO_PROCESS`：表示进程
+            - `PRIO_PGRP`：表示进程组
+            - `PRIO_USER`：表示用户`ID`
+        - `who`：选择感兴趣的一个或多个进程
+            - 如果`who`为 0 ，`which` 为`PRIO_PROCESS`，返回当前进程的`nice值`
+            - 如果`who`为 0 ，`which`为`PRIO_PGRP`，则返回进程组中最小的`nice`值
+            - 如果`who`为0，`which`为`PRIO_USER`，则返回调用进程的实际用户`ID`拥有的那些进程中最小的`nice`值
+        - `value`：`nice`值的增量
+
+    - 返回值：
+        - `getpriority`：
+            - 成功：返回`-20~19`之间的`nice`值
+            - 失败：返回 -1
+
+    `getpriority`不仅可以获得本进程的`nice`值，还可以获取一组相关进程的`nice`值。而`setpriority`可以为本进程、进程组
+    属于特定用户`ID`的所有进程设置优先级
+
+5. 示例：在`main`函数中调用`test_getpriority_setpriority`函数:
+
+	```
+    void test_getpriority_setpriority()
+    {
+        M_TRACE("---------  Begin test_getpriority_setpriority()  ---------\n");
+        create_child();
+        // 只有父进程能到此处
+        check_waitpid();
+        My_getpriority(PRIO_PROCESS,0); // 父进程自己的 nice 值
+        M_TRACE("---------  End test_getpriority_setpriority()  --------\n\n");
+    }
+	```
+    ![nice](../imgs/8_process_control/nice.png) 
+	可以看到，如果为普通用户，则没有权限降低`nice`值。因为普通进程没有权限提升其优先级（即降低`nice`值）。在超级用户权限下，结果如下：
+	![nice_root](../imgs/process_control/nice_root.png) 
+
+
+
+
+

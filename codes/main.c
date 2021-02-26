@@ -16,6 +16,7 @@
 #include "src/8_process_control/system_.h"
 #include "src/8_process_control/setuid_setgid.h"
 #include "src/8_process_control/process_times.h"
+#include "src/8_process_control/getpriority_setpriority.h"
 
 int main(void)
 {
@@ -31,6 +32,7 @@ int main(void)
     //test_wait_waitpid();
     //test_system();
     //test_setuid_seteuid(); 
-    test_progress_times(); 
+    //test_progress_times(); 
+    test_getpriority_setpriority();
     return 0;
 }
